@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Have Fun Racing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Major+Mono+Display&family=Exo+2:ital,wght@0,100;0,400;0,700;0,900;1,900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --mag:        #ff00aa;
+      --mag-dim:    #cc0088;
+      --mag-glow:   rgba(255,0,170,0.22);
+      --mag-faint:  rgba(255,0,170,0.07);
+      --cyan:       #00f5e4;
+      --cyan-dim:   #00c4b6;
+      --cyan-glow:  rgba(0,245,228,0.22);
+      --cyan-faint: rgba(0,245,228,0.07);
+      --bg:         #04030a;
+      --bg-card:    #0a0714;
+      --text:       #ccc8e0;
+      --text-dim:   #504870;
+      --border-mag: rgba(255,0,170,0.25);
+      --border-cyn: rgba(0,245,228,0.25);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 400;
+      line-height: 1.6;
+      overflow-x: hidden;
+      cursor: crosshair;
+    }
+
+    /* ── SCANLINES ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.12) 3px,
+        rgba(0,0,0,0.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── VIGNETTE ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 55%, rgba(4,3,10,0.7) 100%);
+      pointer-events: none;
+      z-index: 9997;
+    }
+
+    /* ════════════════════════════════════════
+       HERO
+    ════════════════════════════════════════ */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: hidden;
+      padding: 0 6vw;
+    }
+
+    canvas#bg {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    /* Radial darkness over grid center so text pops */
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 60%, rgba(4,3,10,0.55) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* Horizontal speed lines */
+    .speed-lines {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .speed-line {
+      position: absolute;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--mag), transparent);
+      opacity: 0;
+      animation: speedLine 3.5s ease-in-out infinite;
+    }
+    @keyframes speedLine {
+      0%   { opacity: 0; transform: scaleX(0) translateX(-100%); }
+      20%  { opacity: 0.6; }
+      80%  { opacity: 0.3; }
+      100% { opacity: 0; transform: scaleX(1) translateX(0); }
+    }
+
+    /* Floating particles */
+    .particles { position: absolute; inset: 0; pointer-events: none; }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      animation: float linear infinite;
+    }
+    @keyframes float {
+      from { transform: translateY(110vh) translateX(0); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 0.5; }
+      to   { transform: translateY(-10vh) translateX(var(--drift)); opacity: 0; }
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 900px;
+    }
+
+    .team-tag {
+      font-family: 'Major Mono Display', monospace;
+      font-size: clamp(0.6rem, 1.2vw, 0.75rem);
+      letter-spacing: 0.4em;
+      color: var(--cyan);
+      text-transform: uppercase;
+      margin-bottom: 1.8rem;
+      opacity: 0;
+      animation: fadeIn 0.8s ease forwards 0.4s;
+      display: inline-flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .team-tag::before, .team-tag::after {
+      content: '';
+      display: inline-block;
+      width: 28px; height: 1px;
+      background: var(--cyan);
+      box-shadow: 0 0 6px var(--cyan);
+    }
+
+    h1 {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 900;
+      font-style: italic;
+      font-size: clamp(3.5rem, 10vw, 8.5rem);
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      opacity: 0;
+      animation: fadeIn 1s ease forwards 0.6s;
+    }
+
+    h1 .line-have {
+      display: block;
+      color: var(--mag);
+      text-shadow:
+        0 0 30px rgba(255,0,170,0.8),
+        0 0 80px rgba(255,0,170,0.35),
+        0 0 140px rgba(255,0,170,0.15);
+    }
+    h1 .line-fun {
+      display: block;
+      color: #fff;
+      -webkit-text-stroke: 1px rgba(255,255,255,0.3);
+      text-shadow: 0 0 40px rgba(255,255,255,0.1);
+    }
+    h1 .line-racing {
+      display: block;
+      color: var(--cyan);
+      text-shadow:
+        0 0 30px rgba(0,245,228,0.8),
+        0 0 80px rgba(0,245,228,0.35),
+        0 0 140px rgba(0,245,228,0.15);
+    }
+
+    .hero-sub {
+      margin-top: 2.2rem;
+      font-size: clamp(1rem, 1.8vw, 1.25rem);
+      font-weight: 300;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      opacity: 0;
+      animation: fadeIn 0.9s ease forwards 1s;
+    }
+    .hero-sub strong {
+      color: var(--mag);
+      font-weight: 600;
+    }
+
+    .hero-badges {
+      margin-top: 2.5rem;
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      opacity: 0;
+      animation: fadeIn 0.9s ease forwards 1.2s;
+    }
+    .badge {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      padding: 0.5rem 1.1rem;
+      border: 1px solid;
+      text-transform: uppercase;
+    }
+    .badge-mag {
+      color: var(--mag);
+      border-color: var(--border-mag);
+      background: var(--mag-faint);
+      text-shadow: 0 0 8px var(--mag-glow);
+    }
+    .badge-cyn {
+      color: var(--cyan);
+      border-color: var(--border-cyn);
+      background: var(--cyan-faint);
+      text-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    /* Scroll indicator */
+    .scroll-hint {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.55rem;
+      letter-spacing: 0.3em;
+      color: var(--text-dim);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      animation: fadeIn 1s ease forwards 2s, bounce 2s ease-in-out 3s infinite;
+      opacity: 0;
+    }
+    .scroll-hint span { writing-mode: vertical-rl; }
+    .scroll-hint::after {
+      content: '';
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, var(--mag), transparent);
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(6px); }
+    }
+
+    /* ════════════════════════════════════════
+       SECTION UTILS
+    ════════════════════════════════════════ */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0 8vw;
+      margin: 5rem 0 3rem;
+    }
+    .divider span {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .divider.mag span { color: var(--mag); }
+    .divider.cyn span { color: var(--cyan); }
+    .divider::before {
+      content: '';
+      flex: 1; height: 1px;
+      background: linear-gradient(to right, transparent, var(--border-mag));
+    }
+    .divider::after {
+      content: '';
+      flex: 1; height: 1px;
+      background: linear-gradient(to left, transparent, var(--border-cyn));
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.85s ease, transform 0.85s ease;
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+    .delay-1 { transition-delay: 0.1s; }
+    .delay-2 { transition-delay: 0.2s; }
+    .delay-3 { transition-delay: 0.3s; }
+    .delay-4 { transition-delay: 0.45s; }
+
+    /* ════════════════════════════════════════
+       TEAM SECTION
+    ════════════════════════════════════════ */
+    #team {
+      padding: 0 8vw 6rem;
+    }
+
+    .section-label {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .section-label.mag { color: var(--mag); }
+    .section-label.cyn { color: var(--cyan); }
+
+    h2 {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 900;
+      font-style: italic;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      text-transform: uppercase;
+      color: #fff;
+      letter-spacing: 0.03em;
+      margin-bottom: 1.5rem;
+      line-height: 1.05;
+    }
+    h2 .accent-mag { color: var(--mag); }
+    h2 .accent-cyn { color: var(--cyan); }
+
+    .team-intro {
+      max-width: 620px;
+      font-size: 1.05rem;
+      color: var(--text);
+      line-height: 1.8;
+      font-weight: 300;
+      margin-bottom: 3.5rem;
+    }
+
+    /* Member cards */
+    .members {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5px;
+      background: linear-gradient(135deg, var(--border-mag), var(--border-cyn));
+    }
+
+    .member {
+      background: var(--bg-card);
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.3s;
+    }
+    .member::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--mag-faint), var(--cyan-faint));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .member:hover { background: #0d0a1a; }
+    .member:hover::before { opacity: 1; }
+
+    .member-num {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+
+    .member-name {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 700;
+      font-size: 1.3rem;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.3rem;
+      position: relative;
+    }
+
+    .member-role {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      color: var(--mag);
+      text-transform: uppercase;
+      margin-bottom: 1.1rem;
+    }
+
+    .member-desc {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+      font-weight: 300;
+      position: relative;
+    }
+
+    .member-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 1.2rem;
+      position: relative;
+    }
+    .tag {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.52rem;
+      letter-spacing: 0.1em;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid var(--border-cyn);
+      color: var(--cyan-dim);
+      text-transform: uppercase;
+    }
+
+    /* ════════════════════════════════════════
+       MISSION / MANIFESTO
+    ════════════════════════════════════════ */
+    #mission {
+      padding: 0 8vw 6rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    @media (max-width: 768px) {
+      #mission { grid-template-columns: 1fr; gap: 2.5rem; }
+    }
+
+    .manifesto-text {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 900;
+      font-style: italic;
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+      line-height: 1.15;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .manifesto-text .m-mag {
+      color: var(--mag);
+      text-shadow: 0 0 20px var(--mag-glow);
+    }
+    .manifesto-text .m-cyn {
+      color: var(--cyan);
+      text-shadow: 0 0 20px var(--cyan-glow);
+    }
+
+    .mission-body { display: flex; flex-direction: column; gap: 1.5rem; }
+
+    .mission-item {
+      padding: 1.4rem 1.6rem;
+      border-left: 2px solid;
+      background: var(--bg-card);
+      position: relative;
+    }
+    .mission-item.mag-border { border-color: var(--mag); }
+    .mission-item.cyn-border { border-color: var(--cyan); }
+
+    .mission-item-label {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .mission-item.mag-border .mission-item-label { color: var(--mag); }
+    .mission-item.cyn-border .mission-item-label { color: var(--cyan); }
+
+    .mission-item p {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+      font-weight: 300;
+    }
+
+    /* ════════════════════════════════════════
+       LINKS
+    ════════════════════════════════════════ */
+    #links {
+      padding: 0 8vw 6rem;
+      display: flex;
+      gap: 1.5px;
+      flex-wrap: wrap;
+      background: linear-gradient(90deg, var(--border-mag), var(--border-cyn));
+    }
+
+    .link-card {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      padding: 1.8rem 2rem;
+      background: var(--bg-card);
+      text-decoration: none;
+      color: var(--text);
+      position: relative;
+      overflow: hidden;
+      transition: color 0.3s;
+    }
+    .link-card .fill {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .link-card.mag-card .fill { background: linear-gradient(135deg, var(--mag-faint), transparent); }
+    .link-card.cyn-card .fill { background: linear-gradient(135deg, var(--cyan-faint), transparent); }
+    .link-card:hover .fill { opacity: 1; }
+    .link-card:hover { color: #fff; }
+    .link-card:hover .link-icon { filter: drop-shadow(0 0 8px var(--mag)); }
+    .link-card.cyn-card:hover .link-icon { filter: drop-shadow(0 0 8px var(--cyan)); }
+
+    .link-icon {
+      font-size: 1.6rem;
+      position: relative;
+      transition: filter 0.3s;
+    }
+
+    .link-label-small {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      margin-bottom: 0.2rem;
+    }
+    .mag-card .link-label-small { color: var(--mag); }
+    .cyn-card .link-label-small { color: var(--cyan); }
+
+    .link-name {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #fff;
+      position: relative;
+    }
+
+    .link-arrow {
+      margin-left: auto;
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      transition: transform 0.3s, color 0.3s;
+      position: relative;
+    }
+    .link-card:hover .link-arrow { transform: translate(3px, -3px); }
+    .mag-card:hover .link-arrow  { color: var(--mag); }
+    .cyn-card:hover .link-arrow  { color: var(--cyan); }
+
+    /* ════════════════════════════════════════
+       FOOTER
+    ════════════════════════════════════════ */
+    footer {
+      border-top: 1px solid;
+      border-image: linear-gradient(to right, var(--border-mag), var(--border-cyn)) 1;
+      padding: 2.5rem 8vw;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .footer-logo {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 900;
+      font-style: italic;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .footer-logo span:first-child { color: var(--mag); }
+    .footer-logo span:last-child  { color: var(--cyan); }
+
+    .footer-copy {
+      font-family: 'Major Mono Display', monospace;
+      font-size: 0.55rem;
+      letter-spacing: 0.18em;
+      color: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    /* ════════════════════════════════════════
+       KEYFRAMES
+    ════════════════════════════════════════ */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* Chromatic aberration on h1 hover */
+    h1:hover .line-have {
+      animation: chromaticShift 0.5s steps(3) forwards;
+    }
+    @keyframes chromaticShift {
+      0%  { text-shadow: -4px 0 var(--cyan), 4px 0 var(--mag), 0 0 60px rgba(255,0,170,0.8); }
+      33% { text-shadow: 4px 0 var(--cyan), -4px 0 var(--mag), 0 0 60px rgba(255,0,170,0.8); }
+      66% { text-shadow: -2px 0 var(--cyan), 2px 0 var(--mag), 0 0 60px rgba(255,0,170,0.8); }
+      100%{ text-shadow: 0 0 30px rgba(255,0,170,0.8), 0 0 80px rgba(255,0,170,0.35); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     HERO
+════════════════════════════════════════ -->
+<section id="hero">
+  <canvas id="bg"></canvas>
+  <div class="hero-overlay"></div>
+
+  <!-- Speed lines -->
+  <div class="speed-lines" id="speed-lines"></div>
+
+  <!-- Particles -->
+  <div class="particles" id="particles"></div>
+
+  <div class="hero-content">
+    <div class="team-tag">Autonomous Racing Team</div>
+
+    <h1>
+      <span class="line-have">Have</span>
+      <span class="line-fun">Fun</span>
+      <span class="line-racing">Racing</span>
+    </h1>
+
+    <p class="hero-sub">
+      We build machines that think, react, and <strong>fly</strong>.
+    </p>
+
+    <div class="hero-badges">
+      <span class="badge badge-mag">AI Grand Prix 2026</span>
+      <span class="badge badge-mag">Reinforcement Learning</span>
+      <span class="badge badge-cyn">FPV Racing</span>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>scroll</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     TEAM
+════════════════════════════════════════ -->
+<div class="divider mag">
+  <span>// 001 — The Crew</span>
+</div>
+
+<section id="team">
+  <div class="reveal">
+    <div class="section-label mag">Team</div>
+    <h2>Built by <span class="accent-mag">humans</span>,<br>flown by <span class="accent-cyn">machines</span></h2>
+    <p class="team-intro">
+      A small, obsessed team of engineers based out of the US. We're not racing
+      for fun — wait, actually, yes we are. But we're also dead serious about it.
+    </p>
+  </div>
+
+  <!-- ⚠️ Fill in real bios below — placeholder content included as scaffolding -->
+  <div class="members">
+
+    <div class="member reveal delay-1">
+      <div class="member-num">// 001</div>
+      <div class="member-name">Justin</div>
+      <div class="member-role">Pilot Lead / ML Engineer</div>
+      <div class="member-desc">
+        Software engineer, DevOps specialist, and the brain behind the RL training loop.
+        If it's broken, he'll automate a fix. If it's automated, he'll make it faster.
+      </div>
+      <div class="member-tags">
+        <span class="tag">Isaac Lab</span>
+        <span class="tag">Reinforcement Learning</span>
+        <span class="tag">DevOps</span>
+      </div>
+    </div>
+
+    <div class="member reveal delay-2">
+      <div class="member-num">// 002</div>
+      <div class="member-name">Zac</div>
+      <div class="member-role">Software Engineer</div>
+      <div class="member-desc">
+        Senior engineer at Aura with a track record of deep technical work and building
+        teams that actually ship. The kind of engineer who makes hard problems look routine.
+      </div>
+      <div class="member-tags">
+        <span class="tag">Software Engineering</span>
+        <span class="tag">Technical Leadership</span>
+        <span class="tag">Systems</span>
+      </div>
+    </div>
+
+    <!-- Add more team members here — duplicate the .member block above -->
+    <!-- Example empty slot:
+    <div class="member reveal delay-2">
+      <div class="member-num">// 002</div>
+      <div class="member-name">Teammate Name</div>
+      <div class="member-role">Role / Specialty</div>
+      <div class="member-desc">Bio goes here.</div>
+      <div class="member-tags">
+        <span class="tag">Skill 1</span>
+        <span class="tag">Skill 2</span>
+      </div>
+    </div>
+    -->
+
+    <!-- Recruitment card -->
+    <div class="member reveal delay-3" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;border:1px dashed rgba(255,0,170,0.2);">
+      <div class="member-num">// ???</div>
+      <div class="member-name" style="color:var(--text-dim);">You?</div>
+      <div class="member-role" style="color:var(--text-dim);">Open Roster</div>
+      <div class="member-desc" style="margin-top:0.5rem;">
+        We're building something weird and fast. If you vibe with that, get in touch.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     MISSION
+════════════════════════════════════════ -->
+<div class="divider cyn">
+  <span>// 002 — The Mission</span>
+</div>
+
+<section id="mission">
+  <div class="manifesto-text reveal">
+    Race<br>
+    fast.<br>
+    <span class="m-mag">Break</span><br>
+    things.<br>
+    <span class="m-cyn">Learn.</span><br>
+    Repeat.
+  </div>
+
+  <div class="mission-body">
+    <div class="mission-item mag-border reveal delay-1">
+      <div class="mission-item-label">The Vibe</div>
+      <p>
+        Autonomous FPV drone racing is a very stupid and very cool idea. We're leaning in.
+        The goal is to win the AI Grand Prix. The process is to build the best possible RL
+        policy and hardware stack, learn everything, and have fun doing it.
+      </p>
+    </div>
+    <div class="mission-item cyn-border reveal delay-2">
+      <div class="mission-item-label">The Stack</div>
+      <p>
+        Training on Isaac Lab with custom drone physics — real wind disturbance, gate
+        navigation, adversarial conditions. The simulation has to be brutal so the real
+        thing is easy. Or at least less crashy.
+      </p>
+    </div>
+    <div class="mission-item mag-border reveal delay-3">
+      <div class="mission-item-label">The Competition</div>
+      <p>
+        AI Grand Prix — November 2026. $500,000 prize pool.
+        We're going for it. No hedging, no backup plan.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     LINKS
+════════════════════════════════════════ -->
+<div class="divider mag">
+  <span>// 003 — Find Us</span>
+</div>
+
+<!-- ⚠️ Replace hrefs with real URLs -->
+<section id="links" class="reveal">
+  <a href="https://github.com/yourusername/have_fun_racer" target="_blank" class="link-card mag-card">
+    <div class="fill"></div>
+    <div class="link-icon">⌥</div>
+    <div>
+      <div class="link-label-small">Source Code</div>
+      <div class="link-name">GitHub</div>
+    </div>
+    <span class="link-arrow">↗</span>
+  </a>
+
+  <a href="https://linkedin.com/in/yourusername" target="_blank" class="link-card cyn-card">
+    <div class="fill"></div>
+    <div class="link-icon">⌘</div>
+    <div>
+      <div class="link-label-small">Professional</div>
+      <div class="link-name">LinkedIn</div>
+    </div>
+    <span class="link-arrow">↗</span>
+  </a>
+
+  <!-- Optional: add more links here — e.g. YouTube build logs, Discord, etc. -->
+</section>
+
+<!-- ═══════════════════════════════════════
+     FOOTER
+════════════════════════════════════════ -->
+<footer>
+  <div class="footer-logo">
+    <span>Have Fun </span><span>Racing</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:2rem;">
+    <a href="ope-site.html" style="font-family:'Major Mono Display',monospace;font-size:0.55rem;letter-spacing:0.2em;color:var(--text-dim);text-decoration:none;text-transform:uppercase;opacity:0.6;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Partner → OPE ↗</a>
+    <div class="footer-copy">© 2025 — AI Grand Prix 2026</div>
+  </div>
+</footer>
+
+<script>
+// ════════════════════════════════════════
+// DUAL-COLOR PERSPECTIVE GRID
+// ════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('bg');
+  const hero   = document.getElementById('hero');
+  const ctx    = canvas.getContext('2d');
+  let W, H, offset = 0;
+
+  function resize() {
+    W = canvas.width  = hero.offsetWidth;
+    H = canvas.height = hero.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    const horizon = H * 0.58;
+    const vpx = W / 2;
+    const spread = W * 1.8;
+    const COLS = 24;
+    const ROWS = 20;
+
+    // Vertical lines — left side magenta, right side cyan, blending in center
+    for (let i = 0; i <= COLS; i++) {
+      const t  = i / COLS;
+      const x0 = vpx + (t - 0.5) * spread;
+      const x1 = vpx + (t - 0.5) * spread * 0.015;
+
+      // Left = mag, right = cyan, center = white-ish
+      const side = (t - 0.5) * 2; // -1 to +1
+      let r, g, b;
+      if (side < 0) {
+        // magenta side
+        const f = Math.min(1, Math.abs(side));
+        r = Math.round(255 * f);
+        g = 0;
+        b = Math.round(170 * f);
+      } else {
+        // cyan side
+        const f = Math.min(1, side);
+        r = 0;
+        g = Math.round(245 * f);
+        b = Math.round(228 * f);
+      }
+      const alpha = 0.05 + 0.06 * (1 - Math.abs(side));
+      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(x0, H * 1.0);
+      ctx.lineTo(x1, horizon);
+      ctx.stroke();
+    }
+
+    // Horizontal lines with dual tone
+    for (let i = 0; i < ROWS; i++) {
+      const tp   = ((i + offset) % ROWS) / ROWS;
+      const ease = Math.pow(tp, 2.4);
+      const y    = horizon + (H - horizon) * ease;
+
+      const fadeH = Math.min(1, (y - horizon) / 80);
+      const fadeB = Math.min(1, (H - y) / 60);
+      const alpha = 0.05 + 0.15 * fadeH * fadeB;
+
+      // Gradient line: mag left → cyan right
+      const xL = vpx - spread * 0.5 * ease - vpx * (1 - ease) + vpx;
+      const xR = vpx + spread * 0.5 * ease + vpx * (1 - ease) - vpx;
+      const grad = ctx.createLinearGradient(xL, 0, xR, 0);
+      grad.addColorStop(0,   `rgba(255,0,170,${alpha * 0.6})`);
+      grad.addColorStop(0.35,`rgba(255,0,170,${alpha})`);
+      grad.addColorStop(0.5, `rgba(200,200,255,${alpha * 0.5})`);
+      grad.addColorStop(0.65,`rgba(0,245,228,${alpha})`);
+      grad.addColorStop(1,   `rgba(0,245,228,${alpha * 0.6})`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(Math.max(-W*0.5, xL), y);
+      ctx.lineTo(Math.min(W*1.5, xR), y);
+      ctx.stroke();
+    }
+
+    // Horizon line: mag → cyan gradient
+    const hGrad = ctx.createLinearGradient(0, 0, W, 0);
+    hGrad.addColorStop(0,   'rgba(255,0,170,0)');
+    hGrad.addColorStop(0.25,'rgba(255,0,170,0.5)');
+    hGrad.addColorStop(0.5, 'rgba(200,100,255,0.3)');
+    hGrad.addColorStop(0.75,'rgba(0,245,228,0.5)');
+    hGrad.addColorStop(1,   'rgba(0,245,228,0)');
+    ctx.strokeStyle = hGrad;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, horizon);
+    ctx.lineTo(W, horizon);
+    ctx.stroke();
+
+    // Horizon glow
+    const glowLeft = ctx.createLinearGradient(0, horizon-50, 0, horizon);
+    glowLeft.addColorStop(0, 'rgba(255,0,170,0)');
+    glowLeft.addColorStop(1, 'rgba(255,0,170,0.06)');
+    ctx.fillStyle = glowLeft;
+    ctx.fillRect(0, horizon-50, W/2, 50);
+
+    const glowRight = ctx.createLinearGradient(0, horizon-50, 0, horizon);
+    glowRight.addColorStop(0, 'rgba(0,245,228,0)');
+    glowRight.addColorStop(1, 'rgba(0,245,228,0.06)');
+    ctx.fillStyle = glowRight;
+    ctx.fillRect(W/2, horizon-50, W/2, 50);
+
+    offset += 0.45 * 0.016;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ════════════════════════════════════════
+// SPEED LINES
+// ════════════════════════════════════════
+(function() {
+  const container = document.getElementById('speed-lines');
+  const COUNT = 14;
+  for (let i = 0; i < COUNT; i++) {
+    const line = document.createElement('div');
+    line.className = 'speed-line';
+    const top = 15 + Math.random() * 70;
+    const width = 100 + Math.random() * 200;
+    const delay = Math.random() * 6;
+    const dur = 2.5 + Math.random() * 2;
+    line.style.cssText = `
+      top: ${top}%;
+      left: ${Math.random() * 60}%;
+      width: ${width}px;
+      animation-delay: ${delay}s;
+      animation-duration: ${dur}s;
+      background: linear-gradient(to right, transparent, ${Math.random() > 0.5 ? '#ff00aa' : '#00f5e4'}, transparent);
+    `;
+    container.appendChild(line);
+  }
+})();
+
+// ════════════════════════════════════════
+// FLOATING PARTICLES
+// ════════════════════════════════════════
+(function() {
+  const container = document.getElementById('particles');
+  const COUNT = 22;
+  for (let i = 0; i < COUNT; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = 1 + Math.random() * 3;
+    const isMag = Math.random() > 0.5;
+    const color = isMag ? '#ff00aa' : '#00f5e4';
+    const left = Math.random() * 100;
+    const drift = (Math.random() - 0.5) * 120;
+    const dur = 6 + Math.random() * 10;
+    const delay = -Math.random() * 15;
+    p.style.cssText = `
+      left: ${left}%;
+      width: ${size}px;
+      height: ${size}px;
+      background: ${color};
+      box-shadow: 0 0 ${size*3}px ${color};
+      --drift: ${drift}px;
+      animation-duration: ${dur}s;
+      animation-delay: ${delay}s;
+    `;
+    container.appendChild(p);
+  }
+})();
+
+// ════════════════════════════════════════
+// SCROLL REVEALS
+// ════════════════════════════════════════
+(function() {
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+})();
+</script>
+
+</body>
+</html>
